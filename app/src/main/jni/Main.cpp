@@ -33,20 +33,35 @@ uintptr_t address;
 uintptr_t getOffsetInfo(const char* className, const char* methodName, int paramCount) {
     // Check if BNM is initialized
     if (!BNM::Il2cppLoaded()) {
+        LOGI(OBFUSCATE("BNM not loaded yet"));
         return 0;
     }
     
-    auto targetClass = BNM::LoadClass("", className);
-    if (!targetClass.klass) {
+    if (address == 0) {
+        LOGI(OBFUSCATE("libil2cpp.so address not set"));
         return 0;
     }
     
-    auto method = targetClass.GetMethodInfoByName(methodName, paramCount);
-    if (!method) {
+    try {
+        auto targetClass = BNM::LoadClass("", className);
+        if (!targetClass.klass) {
+            LOGI(OBFUSCATE("Class not found: %s"), className);
+            return 0;
+        }
+        
+        auto method = targetClass.GetMethodInfoByName(methodName, paramCount);
+        if (!method) {
+            LOGI(OBFUSCATE("Method not found: %s::%s with %d params"), className, methodName, paramCount);
+            return 0;
+        }
+        
+        uintptr_t offset = (uintptr_t)method->methodPointer - address;
+        LOGI(OBFUSCATE("Found method %s::%s at offset: 0x%lX"), className, methodName, offset);
+        return offset;
+    } catch (...) {
+        LOGI(OBFUSCATE("Exception in getOffsetInfo for %s::%s"), className, methodName);
         return 0;
     }
-    
-    return (uintptr_t)method->methodPointer - address;
 }
 
 // Function to read value at offset
@@ -56,8 +71,13 @@ T readOffsetValue(uintptr_t offset) {
         return T{};
     }
     
-    uintptr_t targetAddress = address + offset;
-    return *(T*)targetAddress;
+    try {
+        uintptr_t targetAddress = address + offset;
+        return *(T*)targetAddress;
+    } catch (...) {
+        LOGI(OBFUSCATE("Exception reading offset: 0x%lX"), offset);
+        return T{};
+    }
 }
 
 // Function to read string at offset
@@ -66,8 +86,9 @@ std::string readStringValue(uintptr_t offset) {
         return "";
     }
     
-    uintptr_t targetAddress = address + offset;
-    char* strPtr = *(char**)targetAddress;
+    try {
+        uintptr_t targetAddress = address + offset;
+        char* strPtr = *(char**)targetAddress;
     
     if (strPtr == nullptr) {
         return "[null]";
@@ -105,9 +126,13 @@ std::string readStringValue(uintptr_t offset) {
             }
         }
         
-        return result.empty() ? "[empty]" : result;
+        return result;
     } catch (...) {
         return "[read error]";
+    }
+    } catch (...) {
+        LOGI(OBFUSCATE("Exception reading string at offset: 0x%lX"), offset);
+        return "[exception]";
     }
 }
 
@@ -234,7 +259,6 @@ EGLBoolean hook_eglSwapBuffers(EGLDisplay dpy, EGLSurface surface) {
         ImGui::Begin("Offset Info Window", &showModWindow);
         
         ImGui::Text("Unity IL2CPP Offset Information");
-        ImGui::Text("Тест кириллицы: Привет Мир!");
         ImGui::Separator();
         
         // Input fields for class and method names
@@ -342,7 +366,36 @@ void *hack_thread(void *) {
 
     // Initialize BNM after il2cpp is loaded
     address = findLibrary("libil2cpp.so");
-    BNM::AttachIl2Cpp();
+    if (address == 0) {
+        LOGI(OBFUSCATE("Failed to find libil2cpp.so"));
+        pthread_exit(nullptr);
+        return nullptr;
+    }
+    
+    LOGI(OBFUSCATE("Found libil2cpp.so at: 0x%lX"), address);
+    
+    // Add longer delay before BNM initialization to ensure IL2CPP is fully loaded
+    sleep(50);
+    
+    // Check if IL2CPP domain is ready
+    int retries = 0;
+    while (retries < 5) {
+        try {
+            BNM::AttachIl2Cpp();
+            if (BNM::Il2cppLoaded()) {
+                LOGI(OBFUSCATE("BNM initialized successfully"));
+                break;
+            }
+        } catch (...) {
+            LOGI(OBFUSCATE("BNM initialization attempt %d failed"), retries + 1);
+        }
+        retries++;
+        sleep(2);
+    }
+    
+    if (retries >= 5) {
+        LOGI(OBFUSCATE("BNM initialization failed after 5 attempts"));
+    }
     
     pthread_exit(nullptr);
     return nullptr;
