@@ -29,6 +29,83 @@ int glHeight, glWidth;
 bool setup;
 uintptr_t address;
 
+// Function to get offset information
+uintptr_t getOffsetInfo(const char* className, const char* methodName) {
+    auto targetClass = Class(className);
+    if (!targetClass.Valid()) {
+        return 0;
+    }
+    
+    auto method = targetClass.GetMethod(methodName);
+    if (!method.Valid()) {
+        return 0;
+    }
+    
+    return (uintptr_t)method.GetAddress() - address;
+}
+
+// Function to read value at offset
+template<typename T>
+T readOffsetValue(uintptr_t offset) {
+    if (address == 0 || offset == 0) {
+        return T{};
+    }
+    
+    uintptr_t targetAddress = address + offset;
+    return *(T*)targetAddress;
+}
+
+// Function to read string at offset
+std::string readStringValue(uintptr_t offset) {
+    if (address == 0 || offset == 0) {
+        return "";
+    }
+    
+    uintptr_t targetAddress = address + offset;
+    char* strPtr = *(char**)targetAddress;
+    
+    if (strPtr == nullptr) {
+        return "[null]";
+    }
+    
+    // Safety check to avoid reading invalid memory
+    try {
+        // Check if string is valid by reading first few bytes
+        if (strPtr < (char*)0x1000) {
+            return "[invalid ptr]";
+        }
+        
+        // Read string with length limit for safety
+        std::string result;
+        for (int i = 0; i < 512; i++) { // Max 512 chars
+            char c = strPtr[i];
+            if (c == '\0') break;
+            
+            // Handle UTF-8 sequences (basic support)
+            if ((unsigned char)c >= 0x80) {
+                // Multi-byte UTF-8 character
+                result += c;
+                // Continue reading UTF-8 sequence
+                if (i + 1 < 512 && strPtr[i + 1] != '\0') {
+                    result += strPtr[++i];
+                    if ((unsigned char)c >= 0xE0 && i + 1 < 512 && strPtr[i + 1] != '\0') {
+                        result += strPtr[++i]; // 3-byte UTF-8
+                    }
+                    if ((unsigned char)c >= 0xF0 && i + 1 < 512 && strPtr[i + 1] != '\0') {
+                        result += strPtr[++i]; // 4-byte UTF-8
+                    }
+                }
+            } else {
+                result += c;
+            }
+        }
+        
+        return result.empty() ? "[empty]" : result;
+    } catch (...) {
+        return "[read error]";
+    }
+}
+
 #define HOOKAF(ret, func, ...) \
     ret (*orig##func)(__VA_ARGS__); \
     ret my##func(__VA_ARGS__)
@@ -55,6 +132,17 @@ void SetupImgui() {
     // We load the default font with increased size to improve readability on many devices with "high" DPI.
     ImFontConfig font_cfg;
     font_cfg.SizePixels = 22.0f;
+    
+    // Add Cyrillic glyph ranges for Russian text support
+    static const ImWchar cyrillic_ranges[] = {
+        0x0020, 0x00FF, // Basic Latin + Latin Supplement
+        0x0400, 0x052F, // Cyrillic + Cyrillic Supplement
+        0x2DE0, 0x2DFF, // Cyrillic Extended-A
+        0xA640, 0xA69F, // Cyrillic Extended-B
+        0,
+    };
+    
+    font_cfg.GlyphRanges = cyrillic_ranges;
     io.Fonts->AddFontDefault(&font_cfg);
 
     // Arbitrary scale-up
@@ -94,11 +182,92 @@ EGLBoolean hook_eglSwapBuffers(EGLDisplay dpy, EGLSurface surface) {
     // Mod window (opens on button press)
     if (showModWindow) {
         ImGui::SetNextWindowPos(ImVec2(200, 100), ImGuiCond_FirstUseEver);
-        ImGui::SetNextWindowSize(ImVec2(400, 300), ImGuiCond_FirstUseEver);
-        ImGui::Begin("Tool Window", &showModWindow);
+        ImGui::SetNextWindowSize(ImVec2(500, 400), ImGuiCond_FirstUseEver);
+        ImGui::Begin("Offset Info Window", &showModWindow);
         
-        // Empty window - ready for your content
-        ImGui::Text("This is offset info window!");
+        ImGui::Text("Unity IL2CPP Offset Information");
+        ImGui::Text("Тест кириллицы: Привет Мир!");
+        ImGui::Separator();
+        
+        // Input fields for class and method names
+        static char className[256] = "";
+        static char methodName[256] = "";
+        
+        ImGui::InputText("Class Name", className, sizeof(className));
+        ImGui::InputText("Method Name", methodName, sizeof(methodName));
+        
+        static uintptr_t currentOffset = 0;
+        static bool offsetFound = false;
+        
+        if (ImGui::Button("Get Offset")) {
+            if (strlen(className) > 0 && strlen(methodName) > 0) {
+                currentOffset = getOffsetInfo(className, methodName);
+                offsetFound = (currentOffset != 0);
+            }
+        }
+        
+        ImGui::Separator();
+        
+        if (offsetFound) {
+            ImGui::TextColored(ImVec4(0, 1, 0, 1), "Offset Found!");
+            ImGui::Text("Class: %s", className);
+            ImGui::Text("Method: %s", methodName);
+            ImGui::Text("Offset: 0x%lX", currentOffset);
+            
+            // Copy to clipboard button
+            if (ImGui::Button("Copy Offset")) {
+                char offsetStr[32];
+                snprintf(offsetStr, sizeof(offsetStr), "0x%lX", currentOffset);
+                ImGui::SetClipboardText(offsetStr);
+            }
+        } else if (strlen(className) > 0 && strlen(methodName) > 0) {
+            ImGui::TextColored(ImVec4(1, 0, 0, 1), "Offset not found or invalid class/method");
+        }
+        
+        ImGui::Separator();
+        ImGui::Text("Read Value by Offset:");
+        
+        // Manual offset input
+        static char offsetInput[32] = "";
+        static int dataType = 0; // 0=int, 1=float, 2=bool, 3=uintptr_t, 4=string
+        static bool valueRead = false;
+        static union {
+            int intVal;
+            float floatVal;
+            bool boolVal;
+            uintptr_t ptrVal;
+        } readValue;
+        static std::string stringValue;
+        
+        ImGui::InputText("Offset (hex)", offsetInput, sizeof(offsetInput));
+        ImGui::Combo("Data Type", &dataType, "int\0float\0bool\0uintptr_t\0string\0");
+        
+        if (ImGui::Button("Read Value")) {
+            if (strlen(offsetInput) > 0) {
+                uintptr_t inputOffset = strtoul(offsetInput, nullptr, 16);
+                if (inputOffset > 0) {
+                    switch (dataType) {
+                        case 0: readValue.intVal = readOffsetValue<int>(inputOffset); break;
+                        case 1: readValue.floatVal = readOffsetValue<float>(inputOffset); break;
+                        case 2: readValue.boolVal = readOffsetValue<bool>(inputOffset); break;
+                        case 3: readValue.ptrVal = readOffsetValue<uintptr_t>(inputOffset); break;
+                        case 4: stringValue = readStringValue(inputOffset); break;
+                    }
+                    valueRead = true;
+                }
+            }
+        }
+        
+        if (valueRead && strlen(offsetInput) > 0) {
+            ImGui::Text("Offset: %s", offsetInput);
+            switch (dataType) {
+                case 0: ImGui::Text("Value (int): %d", readValue.intVal); break;
+                case 1: ImGui::Text("Value (float): %.3f", readValue.floatVal); break;
+                case 2: ImGui::Text("Value (bool): %s", readValue.boolVal ? "true" : "false"); break;
+                case 3: ImGui::Text("Value (ptr): 0x%lX", readValue.ptrVal); break;
+                case 4: ImGui::Text("Value (string): %s", stringValue.c_str()); break;
+            }
+        }
         
         ImGui::End();
     }
