@@ -31,7 +31,12 @@ uintptr_t address;
 
 // Function to get offset information
 uintptr_t getOffsetInfo(const char* className, const char* methodName) {
-    auto targetClass = Class(className);
+    // Check if BNM is initialized
+    if (!BNM::IsLoaded()) {
+        return 0;
+    }
+    
+    auto targetClass = BNM::Class(className);
     if (!targetClass.Valid()) {
         return 0;
     }
@@ -290,13 +295,16 @@ void *hack_thread(void *) {
         sleep(1);
     } while (!isLibraryLoaded("libil2cpp.so"));
 
+    // Initialize BNM after il2cpp is loaded
+    address = findLibrary("libil2cpp.so");
+    BNM::TryForceLoadIl2CppByPath(targetLibName);
+    BNM::LoadIl2Cpp();
     
     pthread_exit(nullptr);
     return nullptr;
 }
 
 void *imgui_go(void *) {
-    address = findLibrary("libil2cpp.so");
     auto addr = (uintptr_t)dlsym(RTLD_NEXT, "eglSwapBuffers");
     DobbyHook((void *)addr, (void *)hook_eglSwapBuffers, (void **)&old_eglSwapBuffers);
     pthread_exit(nullptr);
