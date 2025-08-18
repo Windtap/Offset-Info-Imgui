@@ -32,21 +32,21 @@ uintptr_t address;
 // Function to get offset information
 uintptr_t getOffsetInfo(const char* className, const char* methodName) {
     // Check if BNM is initialized
-    if (!BNM::IsLoaded()) {
+    if (!BNM::Il2cppLoaded()) {
         return 0;
     }
     
-    auto targetClass = BNM::Class(className);
-    if (!targetClass.Valid()) {
+    auto targetClass = BNM::LoadClass("", className);
+    if (!targetClass.klass) {
         return 0;
     }
     
-    auto method = targetClass.GetMethod(methodName);
-    if (!method.Valid()) {
+    auto method = targetClass.GetMethodInfoByName(methodName);
+    if (!method) {
         return 0;
     }
     
-    return (uintptr_t)method.GetAddress() - address;
+    return (uintptr_t)method->methodPointer - address;
 }
 
 // Function to read value at offset
@@ -340,8 +340,7 @@ void *hack_thread(void *) {
 
     // Initialize BNM after il2cpp is loaded
     address = findLibrary("libil2cpp.so");
-    BNM::TryForceLoadIl2CppByPath(targetLibName);
-    BNM::LoadIl2Cpp();
+    BNM::AttachIl2Cpp();
     
     pthread_exit(nullptr);
     return nullptr;
