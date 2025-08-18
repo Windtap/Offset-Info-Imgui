@@ -1,7 +1,6 @@
 #pragma once
 
 #include <string>
-#include <stringapiset.h>
 #include <list>
 #include <vector>
 #include <string>
