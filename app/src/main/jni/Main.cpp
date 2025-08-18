@@ -23,13 +23,14 @@
 #include "backends/imgui_impl_opengl3.h"
 #include "backends/imgui_impl_android.h"
 #define targetLibName OBFUSCATE("libil2cpp.so")
-#include "ByNameModding/BNM.hpp"
-using namespace BNM;
+// #include "ByNameModding/BNM.hpp"
+// using namespace BNM;
 int glHeight, glWidth;
 bool setup;
 uintptr_t address;
 
 // Function to get offset information
+/*
 uintptr_t getOffsetInfo(const char* className, const char* methodName, int paramCount) {
     // Check if BNM is initialized
     if (!BNM::Il2cppLoaded()) {
@@ -63,6 +64,7 @@ uintptr_t getOffsetInfo(const char* className, const char* methodName, int param
         return 0;
     }
 }
+*/
 
 // Function to read value at offset
 template<typename T>
@@ -275,8 +277,9 @@ EGLBoolean hook_eglSwapBuffers(EGLDisplay dpy, EGLSurface surface) {
         
         if (ImGui::Button("Get Offset")) {
             if (strlen(className) > 0 && strlen(methodName) > 0) {
-                currentOffset = getOffsetInfo(className, methodName, paramCount);
-                offsetFound = (currentOffset != 0);
+                // currentOffset = getOffsetInfo(className, methodName, paramCount);
+                // offsetFound = (currentOffset != 0);
+                ImGui::TextColored(ImVec4(1, 1, 0, 1), "BNM functionality disabled for testing");
             }
         }
         
@@ -365,6 +368,7 @@ void *hack_thread(void *) {
     } while (!isLibraryLoaded("libil2cpp.so"));
 
     // Initialize BNM after il2cpp is loaded
+    /*
     address = findLibrary("libil2cpp.so");
     if (address == 0) {
         LOGI(OBFUSCATE("Failed to find libil2cpp.so"));
@@ -396,6 +400,9 @@ void *hack_thread(void *) {
     if (retries >= 5) {
         LOGI(OBFUSCATE("BNM initialization failed after 5 attempts"));
     }
+    */
+    
+    LOGI(OBFUSCATE("BNM code disabled for crash testing"));
     
     pthread_exit(nullptr);
     return nullptr;
