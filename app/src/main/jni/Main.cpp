@@ -78,8 +78,31 @@ EGLBoolean hook_eglSwapBuffers(EGLDisplay dpy, EGLSurface surface) {
     // Start the Dear ImGui frame
     ImGui_ImplOpenGL3_NewFrame();
     ImGui::NewFrame();
-    // Render ImGui windows here.
-    ImGui::ShowDemoWindow();
+    
+    // Main menu button (always visible after injection)
+    static bool showModWindow = false;
+    
+    ImGui::SetNextWindowPos(ImVec2(50, 50), ImGuiCond_FirstUseEver);
+    ImGui::Begin("Menu", nullptr, ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoCollapse);
+    
+    if (ImGui::Button("Open")) {
+        showModWindow = !showModWindow;
+    }
+    
+    ImGui::End();
+    
+    // Mod window (opens on button press)
+    if (showModWindow) {
+        ImGui::SetNextWindowPos(ImVec2(200, 100), ImGuiCond_FirstUseEver);
+        ImGui::SetNextWindowSize(ImVec2(400, 300), ImGuiCond_FirstUseEver);
+        ImGui::Begin("Tool Window", &showModWindow);
+        
+        // Empty window - ready for your content
+        ImGui::Text("This is offset info window!");
+        
+        ImGui::End();
+    }
+    
     // Rendering
     ImGui::EndFrame();
     ImGui::Render();
