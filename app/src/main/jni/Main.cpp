@@ -30,7 +30,7 @@ bool setup;
 uintptr_t address;
 
 // Function to get offset information
-uintptr_t getOffsetInfo(const char* className, const char* methodName) {
+uintptr_t getOffsetInfo(const char* className, const char* methodName, int paramCount) {
     // Check if BNM is initialized
     if (!BNM::Il2cppLoaded()) {
         return 0;
@@ -41,7 +41,7 @@ uintptr_t getOffsetInfo(const char* className, const char* methodName) {
         return 0;
     }
     
-    auto method = targetClass.GetMethodInfoByName(methodName);
+    auto method = targetClass.GetMethodInfoByName(methodName, paramCount);
     if (!method) {
         return 0;
     }
@@ -240,16 +240,18 @@ EGLBoolean hook_eglSwapBuffers(EGLDisplay dpy, EGLSurface surface) {
         // Input fields for class and method names
         static char className[256] = "";
         static char methodName[256] = "";
+        static int paramCount = -1;
         
         ImGui::InputText("Class Name", className, sizeof(className));
         ImGui::InputText("Method Name", methodName, sizeof(methodName));
+        ImGui::InputInt("Parameters Count (-1 = any)", &paramCount);
         
         static uintptr_t currentOffset = 0;
         static bool offsetFound = false;
         
         if (ImGui::Button("Get Offset")) {
             if (strlen(className) > 0 && strlen(methodName) > 0) {
-                currentOffset = getOffsetInfo(className, methodName);
+                currentOffset = getOffsetInfo(className, methodName, paramCount);
                 offsetFound = (currentOffset != 0);
             }
         }
