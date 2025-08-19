@@ -28,6 +28,31 @@ namespace IL2CPP
     struct Image;
     struct Type;
     struct Class;
+    
+    // Forward declare Exports
+    namespace Exports {
+        extern void* m_IL2CPP_DOMAIN_GET;
+        
+        // Get class by namespace and name
+        inline void* GetClassFromName(const char* nameSpace, const char* className) {
+            if (!nameSpace) nameSpace = "";
+            if (!className) return nullptr;
+            
+            auto domain = Domain();
+            auto assemblies = domain.Assemblies();
+            
+            for (auto assembly : assemblies) {
+                auto image = assembly->Image();
+                if (!image) continue;
+                
+                // Try to find class in this image
+                auto klass = image->Class(nameSpace, className);
+                if (klass) return klass;
+            }
+            
+            return nullptr;
+        }
+    }
     struct Object;
     struct Parameter;
     class Method;

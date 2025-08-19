@@ -6,7 +6,6 @@
 #include <unistd.h> // for sleep()
 #include <cstring>
 #include <jni.h>
-#include <unistd.h>
 #include <fstream>
 #include <iostream>
 #include <dlfcn.h>
@@ -23,9 +22,13 @@
 #include "imgui_internal.h"
 #include "backends/imgui_impl_opengl3.h"
 #include "backends/imgui_impl_android.h"
-#define targetLibName OBFUSCATE("libil2cpp.so")
+
+// BNM includes
 #include "ByNameModding/BNM.hpp"
-using namespace BNM;
+
+// Avoid using the entire BNM namespace to prevent ambiguity
+using BNM::IL2CPP;
+
 #define targetLibName OBFUSCATE("libil2cpp.so")
 int glHeight, glWidth;
 bool setup;
@@ -397,9 +400,9 @@ void *hack_thread(void *) {
         IL2CPP::Initialize();
         
         // Initialize BNM with the address if needed
-        if (address != nullptr) {
-            LOGI(OBFUSCATE("Initializing BNM with address: %p"), address);
-            if (!BNM::BNM::InitResolveFunc(address)) {
+        if (address != 0) {  
+            LOGI(OBFUSCATE("Initializing BNM with address: %p"), (void*)address);
+            if (!BNM::BNM::InitResolveFunc((void*)address)) {
                 LOGE(OBFUSCATE("Failed to initialize BNM"));
                 return nullptr;
             }
@@ -409,13 +412,28 @@ void *hack_thread(void *) {
         }
         
         // Example of using BNM to find a class and method
-        // auto gameManagerClass = BNM::BNM::FindClass("", "GameManager");
-        // if (gameManagerClass) {
-        //     auto updateMethod = BNM::BNM::FindMethod(gameManagerClass, "Update", 0);
-        //     if (updateMethod) {
-        //         LOGI(OBFUSCATE("Found Update method at: %p"), updateMethod->methodPointer);
-        //     }
-        // }
+        auto gameManagerClass = BNM::BNM::FindClass("", "GameManager");
+        if (gameManagerClass) {
+            LOGI(OBFUSCATE("Found GameManager class"));
+            
+            // Example: Find Update method with 0 parameters
+            auto updateMethod = BNM::BNM::FindMethod(gameManagerClass, "Update", 0);
+            if (updateMethod) {
+                LOGI(OBFUSCATE("Found Update method"));
+            } else {
+                LOGW(OBFUSCATE("Could not find Update method"));
+            }
+            
+            // Example: Find a field
+            auto scoreField = BNM::BNM::FindField(gameManagerClass, "score");
+            if (scoreField) {
+                LOGI(OBFUSCATE("Found score field"));
+            } else {
+                LOGW(OBFUSCATE("Could not find score field"));
+            }
+        } else {
+            LOGW(OBFUSCATE("Could not find GameManager class"));
+        }
         
         LOGI(OBFUSCATE("BNM initialized successfully"));
     } catch (const std::exception &e) {

@@ -4,6 +4,7 @@
 #include <vector>
 #include <cstdint>
 #include <cstring> // for strcmp
+#include <memory>
 
 // Forward declare IL2CPP types if not already included
 namespace IL2CPP {
@@ -12,9 +13,15 @@ namespace IL2CPP {
     
     namespace Exports {
         extern void* m_IL2CPP_DOMAIN_GET;
+        
+        // Add missing method declarations
+        void* GetClassFromName(const char* nameSpace, const char* className);
     }
     
     void Initialize();
+    
+    // Class forward declaration
+    class Class;
 }
 
 #include "Structures/IL2CPP.hpp" // Include after forward declarations
@@ -155,25 +162,31 @@ namespace BNM {
         }
         
         // Find class by namespace and name
-        static Class* FindClass(const char* nameSpace, const char* className) {
-            auto klass = IL2CPP::Class::GetClassFromName(nameSpace, className);
-            if (!klass) return nullptr;
+        static std::shared_ptr<Class> FindClass(const char* nameSpace, const char* className) {
+            if (!nameSpace) nameSpace = "";
+            if (!className) return nullptr;
             
-            Class* result = new Class(className, nameSpace);
-            // TODO: Populate fields and methods
+            auto klass = (IL2CPP::Class*)IL2CPP::Exports::GetClassFromName(nameSpace, className);
+            if (!klass) {
+                LOGW("BNM: Class %s.%s not found", nameSpace, className);
+                return nullptr;
+            }
+            
+            auto result = std::make_shared<Class>(klass->Name(), nameSpace);
+            // TODO: Populate fields and methods from klass
             return result;
         }
         
         // Find method by class and method name
-        static MethodInfo* FindMethod(Class* klass, const char* methodName, int paramCount = -1) {
-            if (!klass) return nullptr;
-            return klass->GetMethod(methodName, paramCount);
+        static std::shared_ptr<MethodInfo> FindMethod(const std::shared_ptr<Class>& klass, const char* methodName, int paramCount = -1) {
+            if (!klass || !methodName) return nullptr;
+            return std::shared_ptr<MethodInfo>(klass->GetMethod(methodName, paramCount));
         }
         
         // Find field by class and field name
-        static FieldInfo* FindField(Class* klass, const char* fieldName) {
-            if (!klass) return nullptr;
-            return klass->GetField(fieldName);
+        static std::shared_ptr<FieldInfo> FindField(const std::shared_ptr<Class>& klass, const char* fieldName) {
+            if (!klass || !fieldName) return nullptr;
+            return std::shared_ptr<FieldInfo>(klass->GetField(fieldName));
         }
     };
 }
