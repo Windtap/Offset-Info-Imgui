@@ -1218,30 +1218,55 @@ namespace IL2CPP
         return IL2CPP::ExportCall::StringLength((void *)this);
     }
 
+    // Helper function for wide char to UTF-8 conversion
+    static std::string WideToUTF8(const wchar_t* wstr, size_t length) {
+        if (!wstr || length == 0) return "";
+        
+        #ifdef _WIN32
+        // Windows implementation using WideCharToMultiByte
+        int size_needed = WideCharToMultiByte(CP_UTF8, 0, wstr, (int)length, NULL, 0, NULL, NULL);
+        if (size_needed <= 0) return "";
+        
+        std::string result(size_needed, 0);
+        WideCharToMultiByte(CP_UTF8, 0, wstr, (int)length, &result[0], size_needed, NULL, NULL);
+        return result;
+        #else
+        // Android/Unix implementation using wcstombs
+        size_t max_size = length * 4 + 1; // Max 4 bytes per UTF-8 char
+        std::string result(max_size, 0);
+        
+        // Convert wide string to multibyte
+        size_t converted = wcstombs(&result[0], wstr, max_size);
+        if (converted == (size_t)-1) {
+            // Conversion failed, try with empty string
+            return "";
+        }
+        
+        // Resize to actual length
+        result.resize(converted);
+        return result;
+        #endif
+    }
+
     // Returns data of string.
     std::string String::Content()
     {
         if ((void *)this == nullptr)
             return std::string("null");
+            
         int length = this->Length();
-        std::string content(static_cast<size_t>(length) * 3 + 1, '\0');
-        WideCharToMultiByte(CP_UTF8, 0, IL2CPP::ExportCall::StringChars((void *)this), length, &content[0], static_cast<int>(content.size()), 0, 0);
-
-        std::vector<char> bytes(content.begin(), content.end());
-        bytes.push_back('\0');
-
-        std::list<char> chars;
-
-        for (byte byte : bytes)
-        {
-            if (byte)
-            {
-                chars.push_back(byte);
-            }
-        }
-
-        std::string clean(chars.begin(), chars.end());
-
-        return clean;
+        if (length <= 0)
+            return "";
+            
+        const wchar_t* wstr = IL2CPP::ExportCall::StringChars((void *)this);
+        if (!wstr)
+            return "";
+            
+        std::string result = WideToUTF8(wstr, length);
+        
+        // Remove any null terminators that might be in the middle of the string
+        result.erase(std::remove(result.begin(), result.end(), '\0'), result.end());
+        
+        return result;
     }
 }
