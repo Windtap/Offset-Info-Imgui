@@ -8,7 +8,7 @@
 #include <wchar.h>
 #define BNM_WCHAR wchar_t
 #else
-typedef unsigned short wchar_t;
+#include <wchar.h>
 #define BNM_WCHAR wchar_t
 #endif
 

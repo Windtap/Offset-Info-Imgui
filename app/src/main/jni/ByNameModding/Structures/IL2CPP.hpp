@@ -3,7 +3,17 @@
 #include <string>
 #include <list>
 #include <vector>
-#include <string>
+#include <cstdint>
+
+// Define byte type if not defined
+#ifndef _MSC_VER
+using byte = uint8_t;
+#endif
+
+// Define CP_UTF8 for Android
+#ifndef CP_UTF8
+#define CP_UTF8 65001
+#endif
 
 // #include "../Utils/EasyPattern.hpp" craze sucks my dick
 #include "../Utils/Other.hpp"
