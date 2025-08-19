@@ -2,7 +2,12 @@
 
 #include <string>
 #include <sstream>
+#ifdef _WIN32
 #include <psapi.h>
+#else
+#include <dlfcn.h>
+#include <unistd.h>
+#endif
 
 namespace BNM
 {
@@ -26,6 +31,7 @@ namespace BNM
             return stream.str();
         }
 
+#ifdef _WIN32
         MODULEINFO GetModuleInfo(const char *szModule)
         {
             MODULEINFO modinfo = {0};
@@ -35,5 +41,24 @@ namespace BNM
             GetModuleInformation(GetCurrentProcess(), hModule, &modinfo, sizeof(MODULEINFO));
             return modinfo;
         }
+#else
+        struct ModuleInfo {
+            void* lpBaseOfDll;
+            unsigned long SizeOfImage;
+            void* EntryPoint;
+        };
+        
+        ModuleInfo GetModuleInfo(const char *szModule)
+        {
+            ModuleInfo modinfo = {0};
+            void* handle = dlopen(szModule, RTLD_LAZY | RTLD_NOLOAD);
+            if (handle) {
+                modinfo.lpBaseOfDll = handle;
+                // Note: Getting actual module size on Android requires parsing /proc/self/maps
+                // For now, we'll return basic info
+            }
+            return modinfo;
+        }
+#endif
     }
 }

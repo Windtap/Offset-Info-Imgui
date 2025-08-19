@@ -1,12 +1,18 @@
 #pragma once
 
+#ifdef _WIN32
 #include <Windows.h>
+#define MODULE_HANDLE HMODULE
+#else
+#include <dlfcn.h>
+#define MODULE_HANDLE void*
+#endif
 
 namespace IL2CPP
 {
     namespace Exports
     {
-        static HMODULE GameAssembly{nullptr};
+        static MODULE_HANDLE GameAssembly{nullptr};
         static void *m_IL2CPP_DOMAIN_GET{nullptr};
         static void *m_IL2CPP_ASSEMBLY_GET_FROM_DOMAIN{nullptr};
         static void *m_IL2CPP_ASSEMBLY_GET_IMAGE{nullptr};

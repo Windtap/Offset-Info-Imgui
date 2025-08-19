@@ -6,8 +6,13 @@
 
 #include "Defines.hpp"
 
+#ifdef _WIN32
 #include <Windows.h>
 #include <memoryapi.h>
+#else
+#include <dlfcn.h>
+#include <sys/mman.h>
+#endif
 
 #include <string>
 #include <unordered_map>
@@ -16,13 +21,25 @@ namespace IL2CPP
 {
     void *ResolveExport(const char *m_Name)
     {
+#ifdef _WIN32
         return GetProcAddress(Exports::GameAssembly, m_Name);
+#else
+        return dlsym(Exports::GameAssembly, m_Name);
+#endif
     }
 
     // Initializing
     void Initialize()
     {
+#ifdef _WIN32
         Exports::GameAssembly = GetModuleHandleA(MAIN_MODULE);
+#else
+        Exports::GameAssembly = dlopen(MAIN_MODULE, RTLD_LAZY);
+        if (!Exports::GameAssembly) {
+            // LOG_ERROR("Failed to load " MAIN_MODULE ": " + std::string(dlerror()));
+            return;
+        }
+#endif
 
         std::unordered_map<std::string, void **>
             ExportMap = {
