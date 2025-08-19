@@ -12,6 +12,9 @@
 #else
 #include <dlfcn.h>
 #include <sys/mman.h>
+#ifndef RTLD_LAZY
+#define RTLD_LAZY 1
+#endif
 #endif
 
 #include <string>

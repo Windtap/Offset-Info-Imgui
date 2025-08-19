@@ -10,9 +10,15 @@
 #define IL2CPP_CALLING_CONVENTION __fastcall *
 #elif _WIN32
 #define IL2CPP_CALLING_CONVENTION __cdecl *
+#else
+#define IL2CPP_CALLING_CONVENTION *
 #endif
 
+#ifdef _WIN32
 #define MAIN_MODULE "GameAssembly.dll"
+#else
+#define MAIN_MODULE "libil2cpp.so"
+#endif
 #define IL2CPP_DOMAIN_GET "il2cpp_domain_get"
 #define IL2CPP_ASSEMBLY_GET_FROM_DOMAIN "il2cpp_domain_assembly_open"
 #define IL2CPP_ASSEMBLY_GET_IMAGE "il2cpp_assembly_get_image"

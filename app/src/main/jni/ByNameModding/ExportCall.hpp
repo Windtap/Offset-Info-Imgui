@@ -3,6 +3,15 @@
 #include "Exports.hpp"
 #include "Defines.hpp"
 
+// Add cross-platform string type definitions
+#ifdef _WIN32
+#include <wchar.h>
+#define BNM_WCHAR wchar_t
+#else
+typedef unsigned short wchar_t;
+#define BNM_WCHAR wchar_t
+#endif
+
 namespace IL2CPP
 {
     namespace ExportCall
@@ -99,9 +108,9 @@ namespace IL2CPP
             return reinterpret_cast<void *(IL2CPP_CALLING_CONVENTION)(const char *)>(Exports::m_IL2CPP_STRING_NEW)(content);
         }
 
-        inline LPCWCH StringChars(void *instance)
+        inline const BNM_WCHAR* StringChars(void *instance)
         {
-            return reinterpret_cast<LPCWCH(IL2CPP_CALLING_CONVENTION)(void *)>(Exports::m_IL2CPP_STRING_CHARS)(instance);
+            return reinterpret_cast<const BNM_WCHAR*(IL2CPP_CALLING_CONVENTION)(void *)>(Exports::m_IL2CPP_STRING_CHARS)(instance);
         }
 
         inline int StringLength(void *instance)

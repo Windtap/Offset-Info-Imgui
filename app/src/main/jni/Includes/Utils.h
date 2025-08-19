@@ -7,18 +7,18 @@
 #include <cstring>
 #include <string>
 #include <cstdlib>
+#include <cstdint>
 #include "Logger.h"
 #include "Unity/unity.h"
-typedef unsigned long DWORD;
 static uintptr_t libBase;
 const char* libName = "libil2cpp.so";
 bool libLoaded = false;
 
-DWORD findLibrary(const char *library) {
+uintptr_t findLibrary(const char *library) {
     char filename[0xFF] = {0},
             buffer[1024] = {0};
     FILE *fp = NULL;
-    DWORD address = 0;
+    uintptr_t address = 0;
 
     sprintf(filename, OBFUSCATE("/proc/self/maps"));
 
@@ -30,7 +30,7 @@ DWORD findLibrary(const char *library) {
 
     while (fgets(buffer, sizeof(buffer), fp)) {
         if (strstr(buffer, library)) {
-            address = (DWORD) strtoul(buffer, NULL, 16);
+            address = strtoul(buffer, NULL, 16);
             goto done;
         }
     }
@@ -44,11 +44,11 @@ DWORD findLibrary(const char *library) {
     return address;
 }
 
-DWORD getAbsoluteAddress(const char *libraryName, DWORD relativeAddr) {
+uintptr_t getAbsoluteAddress(const char *libraryName, uintptr_t relativeAddr) {
     libBase = findLibrary(libraryName);
     if (libBase == 0)
         return 0;
-    return (reinterpret_cast<DWORD>(libBase + relativeAddr));
+    return (libBase + relativeAddr);
 }
 
 
@@ -72,7 +72,7 @@ bool isLibraryLoaded(const char *libraryName) {
     }
     return false;
 }
-DWORD getRealOffset(DWORD address) {
+uintptr_t getRealOffset(uintptr_t address) {
     if (libBase == 0) {
         libBase = findLibrary(libName);
     }
