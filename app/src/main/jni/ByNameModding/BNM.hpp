@@ -3,6 +3,7 @@
 // Structures
 #include "Structures/IL2CPP.hpp"
 #include "Structures/UnityEngine.hpp"
+#include "BNM_Classes.hpp"
 
 #include "Defines.hpp"
 

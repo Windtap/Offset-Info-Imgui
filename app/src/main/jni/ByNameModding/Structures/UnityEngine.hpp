@@ -1,4 +1,6 @@
 #pragma once
+
+#include <cmath>
 #include <math.h>
 #include <cstdint>
 #define M_PI       3.14159265358979323846

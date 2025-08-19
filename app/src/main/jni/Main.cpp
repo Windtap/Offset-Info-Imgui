@@ -3,6 +3,7 @@
 #include <string.h>
 #include <pthread.h>
 #include <thread>
+#include <unistd.h> // for sleep()
 #include <cstring>
 #include <jni.h>
 #include <unistd.h>
@@ -389,14 +390,38 @@ void *hack_thread(void *) {
     
     LOGI(OBFUSCATE("Initializing JQ-BNM..."));
     
-    // JQ-BNM initialization
+    // BNM initialization
     try {
-        BNM::InitResolveFunc(address);
-        LOGI(OBFUSCATE("JQ-BNM initialized successfully"));
+        // Initialize IL2CPP first
+        LOGI(OBFUSCATE("Initializing IL2CPP..."));
+        IL2CPP::Initialize();
+        
+        // Initialize BNM with the address if needed
+        if (address != nullptr) {
+            LOGI(OBFUSCATE("Initializing BNM with address: %p"), address);
+            if (!BNM::BNM::InitResolveFunc(address)) {
+                LOGE(OBFUSCATE("Failed to initialize BNM"));
+                return nullptr;
+            }
+        } else {
+            LOGE(OBFUSCATE("No address provided for BNM initialization"));
+            return nullptr;
+        }
+        
+        // Example of using BNM to find a class and method
+        // auto gameManagerClass = BNM::BNM::FindClass("", "GameManager");
+        // if (gameManagerClass) {
+        //     auto updateMethod = BNM::BNM::FindMethod(gameManagerClass, "Update", 0);
+        //     if (updateMethod) {
+        //         LOGI(OBFUSCATE("Found Update method at: %p"), updateMethod->methodPointer);
+        //     }
+        // }
+        
+        LOGI(OBFUSCATE("BNM initialized successfully"));
     } catch (const std::exception &e) {
-        LOGI(OBFUSCATE("JQ-BNM init error: %s"), e.what());
+        LOGE(OBFUSCATE("BNM init error: %s"), e.what());
     } catch (...) {
-        LOGI(OBFUSCATE("Unknown JQ-BNM init error"));
+        LOGE(OBFUSCATE("Unknown BNM init error"));
     }
     pthread_exit(nullptr);
     return nullptr;
